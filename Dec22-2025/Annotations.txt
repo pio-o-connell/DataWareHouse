@@ -1,0 +1,187 @@
+Remove static globals
+
+Remove maindriver.Company
+
+Remove hidden dependencies
+
+Remove circular references
+
+At this point:
+✔ Testable
+✔ Understandable
+✔ Framework-ready include 
+
+
+
+
+
+
+Only at the end should you remove legacy shortcuts like static globals, hidden dependencies, and circular references. Do this last, when the structure is stable.
+
+
+Annotations are labels, not magic:
+
+@Repository
+
+@Service
+
+@Component
+
+
+
+How do I Used annotations only as semantic markers
+Great question — this goes right to the heart of what you built 👍
+Using annotations only as semantic markers means they carry meaning for humans (and future tools), but no runtime behaviour.
+I’ll explain what that means, how to do it correctly, and how it fits your Swing app.
+1️⃣ What “semantic marker annotations” really mean
+In your project:
+@Service
+@Repository
+@Component
+@Controller
+@Transactional
+👉 Do nothing by themselves
+They:
+do not create objects
+do not inject dependencies
+do not manage transactions
+do not change execution
+They exist to say:
+“This class plays this role in the architecture.”
+That’s it.
+Think of them as:
+architectural labels
+documentation enforced by the compiler
+future integration hooks
+2️⃣ How to define your own semantic annotations
+Because you’re not using Spring, you define them yourself.
+Example: @Service
+
+package annotations;
+
+import java.lang.annotation.*;
+
+@Retention(RetentionPolicy.SOURCE)  // or CLASS
+@Target(ElementType.TYPE)
+public @interface Service {
+}
+
+
+Key choices explained:
+RetentionPolicy.SOURCE
+→ discarded at compile time
+→ purely semantic
+RetentionPolicy.CLASS
+→ kept in .class, still no behaviour
+NOT RUNTIME (unless you plan reflection later)
+Other common markers
+
+
+@Target(ElementType.TYPE)
+@Retention(RetentionPolicy.SOURCE)
+public @interface Repository {
+}
+
+
+@Target(ElementType.TYPE)
+@Retention(RetentionPolicy.TYPE)
+public @interface Controller {
+}
+
+@Target(ElementType.TYPE)
+@Retention(RetentionPolicy.SOURCE)
+public @interface Component {
+}
+
+3️⃣ How they are used in your Swing app
+Example: Service layer
+
+@Service
+public class ProductService {
+
+    private final ProductRepository repository;
+
+    public ProductService(ProductRepository repository) {
+        this.repository = repository;
+    }
+
+    public void addProduct(Product p) {
+        // business rules here
+        repository.save(p);
+    }
+}
+
+Nothing magical happens.
+But instantly, a human knows:
+This is not UI
+This is not persistence
+This class contains business logic
+Example: Repository
+
+@Repository
+public class ProductRepositoryJdbc implements ProductRepository {
+
+    public void save(Product p) {
+        // JDBC code only
+    }
+}
+
+That annotation enforces a mental rule:
+“If I see Swing here, it’s wrong.”
+4️⃣ @Transactional as a semantic boundary
+Without Spring or JPA transaction managers, this:
+
+@Transactional
+public class OrderService {
+}
+
+Means:
+“All public methods here should be atomic.”
+Even if you manually manage transactions, the annotation documents the rule.
+Example:
+
+public void placeOrder(Order order) {
+    connection.setAutoCommit(false);
+    try {
+        orderRepo.save(order);
+        stockRepo.decrement(order);
+        connection.commit();
+    } catch (Exception e) {
+        connection.rollback();
+        throw e;
+    }
+}
+
+The annotation doesn’t do it — you do — but the intent is crystal clear.
+5️⃣ Why this is a professional technique
+You’re doing what experienced engineers do when:
+designing systems before choosing a framework
+teaching architecture
+future-proofing codebases
+Benefits:
+Clean separation of concerns
+Easier code reviews
+Simple migration to Spring / Jakarta later
+IDE navigation & consistency
+6️⃣ Optional (advanced): Enforcing semantics
+Later, if you wanted:
+an annotation processor
+an ArchUnit test
+a static analysis rule
+You could enforce things like:
+@Service must not import java.sql
+@Repository must not import Swing
+@Controller must not contain SQL
+That’s where this approach really shines.
+7️⃣ Bottom line (important)
+You are not “pretending to use Spring.”
+You are:
+using the same vocabulary
+understanding the roles
+implementing the behaviour yourself
+That’s exactly the right way to learn and design.
+If you want next, I can:
+show a minimal annotations package layout
+show bootstrap wiring with annotated classes
+or show how Spring would later “wake up” these same annotations
+Just tell me where you want to go next.
